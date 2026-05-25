@@ -67,7 +67,6 @@ Note: we filter on `can_allocate` only — `allocation_restriction_info` is info
 5. **HTTP-layer integration tests** with `supertest`. Current 16 Vitest tests cover the transform/tier logic.
 6. **Move policy out of code:** tier→lock-type mapping, APY floor, APR side (`low`/`mid`/`high`) — into admin-editable config so compliance can retune without a redeploy.
 7. **Consider a soft buffer above 3%** (e.g. 3.25%). Kraken's `apr_estimate` moves; strategies flickering across the cliff is a UX issue.
-8. Any production related security and performance considerations to be implemented. These are not considered in this POC.
 
 ## File map
 
