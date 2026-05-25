@@ -8,3 +8,4 @@ coverage
 
 # Claude Code local state (per-developer)
 .claude/
+.cc-history/
