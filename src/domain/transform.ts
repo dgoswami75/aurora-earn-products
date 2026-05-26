@@ -28,7 +28,7 @@ const YIELD_SOURCE_LABEL: Record<string, string> = {
  *   4. apply tier filter
  *   5. sort by apyValue descending
  *
- * Note on APR vs APY: Kraken returns `apr_estimate`. We surface the lower
+ * Note on APR vs APY: the upstream API returns `apr_estimate`. We surface the lower
  * bound as `apyValue` to match Aurora's required output shape; converting
  * APR -> APY would require assumptions about compounding we can't validate.
  * Documented in solution-design-note.md.

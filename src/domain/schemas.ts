@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Schemas mirror the shapes returned by Kraken's
+ * Schemas mirror the shapes returned by the upstream provider's
  *  - POST /private/Earn/Strategies
  *  - GET  /public/Assets
  *

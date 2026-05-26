@@ -2,7 +2,7 @@
   "name": "aurora-earn-products",
   "version": "0.1.0",
   "private": true,
-  "description": "Aurora Bank earn-products PoC against Kraken Earn strategies",
+  "description": "Aurora Bank earn-products PoC against an upstream Earn API",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
