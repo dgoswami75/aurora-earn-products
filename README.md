@@ -61,7 +61,7 @@ Key design choices:
 
 - **All JSON files in `data/` are read and classified by shape** (strategies vs assets). Unknown files are skipped with a warning, not a crash. Additional grading fixtures dropped into `data/` will be picked up automatically.
 - **Data loaded once at boot.** Restart to pick up new fixtures. Trade-off: low latency, no FS chatter per request; cost: needs a restart for changes. Appropriate for the static-fixture use case here.
-- **Pure transform.** `buildEarnProducts(strategies, assets, tier)` is a pure function — easy to test in isolation, easy to reason about. All 16 unit tests cover this layer directly.
+- **Pure transform.** `buildEarnProducts(strategies, assets, tier)` is a pure function — easy to test in isolation, easy to reason about. 22 of the 52 unit tests target this layer directly.
 - **Boundary-only validation.** Zod schemas validate at the file-load boundary (where bad data enters). Internal types are TS-only. This matches the spec's "handle malformed upstream data" requirement without paying the runtime cost everywhere.
 - **Fail-fast at boot.** If data files are missing or unparseable, the process exits with a clear error — better than discovering it on the first customer request.
 
@@ -78,7 +78,7 @@ src/
 │   └── transform.ts       # raw -> output (filter, normalise, sort)
 ├── dataLoader.ts          # reads + classifies all *.json in /data
 ├── errors.ts              # structured error response helper
-└── __tests__/             # Vitest unit tests (16 total)
+└── __tests__/             # Vitest unit + supertest tests (52 total)
 ```
 
 ## Dependencies
@@ -91,7 +91,7 @@ Three runtime deps total, chosen for minimal surface area and longevity:
 | `zod` | `^3.23.8` | Schema-validation library with zero dependencies. Pure TypeScript, no native code, no runtime fetches. Used only to validate file contents at load time. |
 | `node:fs/promises`, `node:path` | (stdlib) | Filesystem reads happen via the Node standard library. |
 
-Dev-only: `typescript`, `vitest`, `ts-node-dev`, `@types/*`. None ship in the production image.
+Dev-only: `typescript`, `vitest`, `supertest`, `ts-node-dev`, `@types/*`. None ship in the production image.
 
 ## Tests
 
@@ -99,11 +99,15 @@ Dev-only: `typescript`, `vitest`, `ts-node-dev`, `@types/*`. None ship in the pr
 npm test
 ```
 
-16 unit tests covering: tier rules per lock type, APY threshold (including the XTZ 2.5–3.5 boundary case), missing apr_estimate, disabled assets, unknown asset codes, `can_allocate=false`, sort order, display formatting.
+52 tests across 4 files:
+
+- **`tiers.test.ts`** (6) — tier eligibility per lock type, including `flex`, `bonded`, `timed`, `hybrid`, and unknown-lock-type fallback.
+- **`transform.test.ts`** (22) — APY threshold (incl. the XTZ 2.5–3.5 case and the 3.00% boundary), missing/non-finite `apr_estimate`, disabled assets, unknown asset codes, `can_allocate=false`, sort order (incl. stable sort on equal APYs), display formatting (incl. whole-number, IEEE-754 rounding edge), `minimumAmount` string preservation, displayName fallbacks.
+- **`dataLoader.test.ts`** (11) — multi-file merge, schema classification, unknown-shape skip, non-JSON ignore, subdirectory ignore, uppercase `.JSON` extension, and four boot-failure paths (empty dir, no strategies, no assets, corrupt JSON).
+- **`app.test.ts`** (13) — supertest-driven HTTP-layer tests covering `/health`, every `/earn-products` query-param variant (case, whitespace, missing, empty, unknown, array), 404 path, `x-powered-by` absence, structured `INTERNAL` error envelope, and the `getData` closure pattern.
 
 ## Known limitations / what I'd add with more time
 
-- **No integration test** of the HTTP layer (supertest would slot in easily) — the transform and tier logic are covered by unit tests, but the route handler is only verified via manual curl.
 - **APR is surfaced as APY.** Kraken returns `apr_estimate`; converting to true APY would require assumptions about compounding frequency that vary by `payout_frequency`. We use the conservative `low` bound as `apyValue` — see [solution-design-note.md](./solution-design-note.md) §2.
 - **No request logging.** A real deployment would add `pino` or similar with request IDs.
 - **No rate limiting.** Aurora's frontend will fan out reads — an `express-rate-limit` ahead of the route would be appropriate.

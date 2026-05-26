@@ -64,7 +64,7 @@ Note: we filter on `can_allocate` only — `allocation_restriction_info` is info
 2. **Cache strategy/asset responses** (60s TTL, stale-while-revalidate). Today's static load is effectively this with TTL = process lifetime.
 3. **Request logging + trace IDs** (`pino` + a request-ID middleware) so Aurora's frontend logs can be correlated with this service.
 4. **Rate limiting** — inbound (`express-rate-limit`) and outbound (token bucket vs Kraken's per-key limits).
-5. **HTTP-layer integration tests** with `supertest`. Current 16 Vitest tests cover the transform/tier logic.
+5. **Contract tests with Aurora's frontend.** This side has 52 Vitest tests across the transform, tier, data-loader, and HTTP layers (including supertest-driven route tests); next step is locking the response shape from the consumer side so neither team can drift unilaterally.
 6. **Move policy out of code:** tier→lock-type mapping, APY floor, APR side (`low`/`mid`/`high`) — into admin-editable config so compliance can retune without a redeploy.
 7. **Consider a soft buffer above 3%** (e.g. 3.25%). Kraken's `apr_estimate` moves; strategies flickering across the cliff is a UX issue.
 
