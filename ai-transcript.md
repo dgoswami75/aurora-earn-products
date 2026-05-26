@@ -128,7 +128,7 @@ data
 Here's what the assessment asks you to produce:
 
 ## The task
-Build a working PoC for **Aurora Bank** — a service that surfaces Kraken Earn yield products to their customers, in TypeScript or Rust.
+Build a working PoC for **Aurora Bank** — a service that surfaces upstream Earn yield products to their customers, in TypeScript or Rust.
 
 ## Functional requirements
 - **APY filter:** only show strategies with APY ≥ 3%
@@ -140,7 +140,7 @@ Build a working PoC for **Aurora Bank** — a service that surfaces Kraken Earn 
 
 ## Service shape
 - HTTP endpoint: `GET /earn-products?tier={standard|premium|private}`
-- Reads from `data/*.json` (Kraken Earn `/Strategies` + `/Assets` mock files) — read **all** JSON files in the directory, not just the provided ones
+- Reads from `data/*.json` (upstream Earn `/Strategies` + `/Assets` mock files) — read **all** JSON files in the directory, not just the provided ones
 - Runs at `http://localhost:3000` via **`docker-compose up`** with zero extra steps
 - Build-time network OK, **runtime network closed** — no live API calls
 - **Only the default compose network** — no custom `networks:` block
@@ -321,10 +321,10 @@ Here's the field-by-field mapping and the join model between the two files.
 | Output field | Source | Derivation |
 |---|---|---|
 | `strategyId` | `strategies.json` → `result.items[].id` | Direct copy. |
-| `asset` | `assets.json` → `result[<strategies.asset>].altname` | Join on `strategies.items[].asset` (e.g. `XETH`, `XADA`, `XXTZ`) → look up in the assets map → take `altname` (e.g. `ETH`, `ADA`, `XTZ`). Kraken's internal asset codes ≠ the display ticker. |
+| `asset` | `assets.json` → `result[<strategies.asset>].altname` | Join on `strategies.items[].asset` (e.g. `XETH`, `XADA`, `XXTZ`) → look up in the assets map → take `altname` (e.g. `ETH`, `ADA`, `XTZ`). the provider's internal asset codes ≠ the display ticker. |
 | `displayName` | Derived | Composed from the looked-up asset name + `lock_type.type` + `yield_source.type`. Example sample `"Ethereum Flexible Staking"` ← altname `ETH` (mapped to `Ethereum`) + `instant`/`flex` ("Flexible") + `staking` ("Staking"). The full-name part ("Ethereum") isn't in the mock data — we either ship a small static map or fall back to `altname`. Worth flagging in the design note. |
 | `lockType` | `strategies.json` → `lock_type.type` | Direct copy. Possible values seen: `instant`, `flex`, `bonded`, `timed`, `hybrid`. |
-| `apyValue` | Derived from `apr_estimate.low` / `.high` | Pick one (e.g. midpoint, or `low` as the conservative shown rate). Note: Kraken returns **APR**, not APY — we should be explicit about whether we convert (using `payout_frequency` for compounding) or surface APR as-is and document. |
+| `apyValue` | Derived from `apr_estimate.low` / `.high` | Pick one (e.g. midpoint, or `low` as the conservative shown rate). Note: the upstream provider returns **APR**, not APY — we should be explicit about whether we convert (using `payout_frequency` for compounding) or surface APR as-is and document. |
 | `apyDisplay` | Derived | String form of `apyValue`, formatted to 2 dp + `%`. |
 | `eligibleTiers` | Derived from `lock_type` | Tier rules — see below. |
 | `minimumAmount` | `strategies.json` → `user_min_allocation` | Direct copy (kept as a string to preserve precision). |
@@ -385,7 +385,7 @@ Here's the field-by-field mapping and the join model between the two files.
 
 ## Things worth flagging now (before coding)
 
-1. **APR vs APY** — Kraken returns `apr_estimate`. The spec asks for APY. We can either (a) treat them as equivalent and label our `apyValue` as the APR mid/low value, or (b) compound using `payout_frequency`. Pick one and document it.
+1. **APR vs APY** — the upstream provider returns `apr_estimate`. The spec asks for APY. We can either (a) treat them as equivalent and label our `apyValue` as the APR mid/low value, or (b) compound using `payout_frequency`. Pick one and document it.
 2. **Which side of the APR range?** `low` is conservative (better for a regulated bank's customer-facing display); `high` flatters numbers. The `XTZ` row (low 2.5, high 3.5) is a tripwire — the choice changes whether it passes the 3% gate.
 3. **Asset code translation is mandatory.** Aurora's frontend will show `ETH`, not `XETH`. The `altname` field is the canonical normaliser.
 4. **`can_allocate: false`** — multiple strategies have this. They likely shouldn't be surfaced to customers; worth excluding (and documenting).
@@ -469,7 +469,7 @@ For Typescript and express based solution, create an implementation plan and run
 
 | # | Decision | My recommendation | Reasoning |
 |---|---|---|---|
-| 1 | APR vs APY | Surface Kraken's APR as-is, label it `apyValue` per the spec's required shape, and explain in the design note | True APY conversion needs assumptions about compounding frequency we can't validate — overstating yield to a regulated bank's customers is the worse error |
+| 1 | APR vs APY | Surface the upstream provider's APR as-is, label it `apyValue` per the spec's required shape, and explain in the design note | True APY conversion needs assumptions about compounding frequency we can't validate — overstating yield to a regulated bank's customers is the worse error |
 | 2 | Which APR value (low/high/mid) | `low` | Conservative, regulator-friendly. Also makes the XTZ row (2.5–3.5) correctly fail the 3% gate. |
 | 3 | `flex` lock type → Standard? | Yes, all tiers | Spec describes Standard's access as "flexible/instant-access"; flex literally means flexible |
 | 4 | `timed` / `hybrid` lock types | Premium + Private only | Both have lockup or delayed-withdrawal semantics; safest default and documented |
@@ -624,7 +624,7 @@ Starting with project scaffolding.
 ```json
 {
   "file_path": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/package.json",
-  "content": "{\n  \"name\": \"aurora-earn-products\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"description\": \"Aurora Bank earn-products PoC against Kraken Earn strategies\",\n  \"main\": \"dist/server.js\",\n  \"scripts\": {\n    \"build\": \"tsc\",\n    \"start\": \"node dist/server.js\",\n    \"dev\": \"ts-node-dev --respawn --transpile-only src/server.ts\",\n    \"test\": \"vitest run\",\n    \"typecheck\": \"tsc --noEmit\"\n  },\n  \"engines\": {\n    \"node\": \">=20\"\n  },\n  \"dependencies\": {\n    \"express\": \"^4.21.2\",\n    \"zod\": \"^3.23.8\"\n  },\n  \"devDependencies\": {\n    \"@types/express\": \"^4.17.21\",\n    \"@types/node\": \"^20.14.0\",\n    \"ts-node-dev\": \"^2.0.0\",\n    \"typescript\": \"^5.5.4\",\n    \"vitest\": \"^2.0.5\"\n  }\n}\n"
+  "content": "{\n  \"name\": \"aurora-earn-products\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"description\": \"Aurora Bank earn-products PoC against upstream Earn strategies\",\n  \"main\": \"dist/server.js\",\n  \"scripts\": {\n    \"build\": \"tsc\",\n    \"start\": \"node dist/server.js\",\n    \"dev\": \"ts-node-dev --respawn --transpile-only src/server.ts\",\n    \"test\": \"vitest run\",\n    \"typecheck\": \"tsc --noEmit\"\n  },\n  \"engines\": {\n    \"node\": \">=20\"\n  },\n  \"dependencies\": {\n    \"express\": \"^4.21.2\",\n    \"zod\": \"^3.23.8\"\n  },\n  \"devDependencies\": {\n    \"@types/express\": \"^4.17.21\",\n    \"@types/node\": \"^20.14.0\",\n    \"ts-node-dev\": \"^2.0.0\",\n    \"typescript\": \"^5.5.4\",\n    \"vitest\": \"^2.0.5\"\n  }\n}\n"
 }
 ```
 
@@ -791,7 +791,7 @@ Dependencies installed. Now the schemas and domain types.
 ```json
 {
   "file_path": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/src/domain/schemas.ts",
-  "content": "import { z } from \"zod\";\n\n/**\n * Schemas mirror the shapes returned by Kraken's\n *  - POST /private/Earn/Strategies\n *  - GET  /public/Assets\n *\n * We validate at the boundary so any malformed input fails predictably\n * rather than leaking through to the customer-facing response.\n */\n\nconst LockTypeSchema = z\n  .object({\n    type: z.string(),\n    unbonding_period: z.number().optional(),\n  })\n  .passthrough();\n\nconst AprEstimateSchema = z.object({\n  low: z.string(),\n  high: z.string(),\n});\n\nexport const StrategyItemSchema = z\n  .object({\n    id: z.string(),\n    asset: z.string(),\n    asset_class: z.string().optional(),\n    lock_type: LockTypeSchema,\n    apr_estimate: AprEstimateSchema.optional(),\n    user_min_allocation: z.string(),\n    can_allocate: z.boolean(),\n    yield_source: z\n      .object({ type: z.string() })\n      .passthrough()\n      .optional(),\n  })\n  .passthrough();\n\nexport const StrategiesFileSchema = z.object({\n  error: z.array(z.unknown()).optional(),\n  result: z.object({\n    next_cursor: z.string().nullable().optional(),\n    items: z.array(StrategyItemSchema),\n  }),\n});\n\nexport const AssetEntrySchema = z\n  .object({\n    aclass: z.string().optional(),\n    altname: z.string(),\n    decimals: z.number().optional(),\n    display_decimals: z.number().optional(),\n    status: z.string().optional(),\n  })\n  .passthrough();\n\nexport const AssetsFileSchema = z.object({\n  error: z.array(z.unknown()).optional(),\n  result: z.record(z.string(), AssetEntrySchema),\n});\n\nexport type StrategyItem = z.infer<typeof StrategyItemSchema>;\nexport type AssetEntry = z.infer<typeof AssetEntrySchema>;\nexport type StrategiesFile = z.infer<typeof StrategiesFileSchema>;\nexport type AssetsFile = z.infer<typeof AssetsFileSchema>;\n"
+  "content": "import { z } from \"zod\";\n\n/**\n * Schemas mirror the shapes returned by the upstream provider's\n *  - POST /private/Earn/Strategies\n *  - GET  /public/Assets\n *\n * We validate at the boundary so any malformed input fails predictably\n * rather than leaking through to the customer-facing response.\n */\n\nconst LockTypeSchema = z\n  .object({\n    type: z.string(),\n    unbonding_period: z.number().optional(),\n  })\n  .passthrough();\n\nconst AprEstimateSchema = z.object({\n  low: z.string(),\n  high: z.string(),\n});\n\nexport const StrategyItemSchema = z\n  .object({\n    id: z.string(),\n    asset: z.string(),\n    asset_class: z.string().optional(),\n    lock_type: LockTypeSchema,\n    apr_estimate: AprEstimateSchema.optional(),\n    user_min_allocation: z.string(),\n    can_allocate: z.boolean(),\n    yield_source: z\n      .object({ type: z.string() })\n      .passthrough()\n      .optional(),\n  })\n  .passthrough();\n\nexport const StrategiesFileSchema = z.object({\n  error: z.array(z.unknown()).optional(),\n  result: z.object({\n    next_cursor: z.string().nullable().optional(),\n    items: z.array(StrategyItemSchema),\n  }),\n});\n\nexport const AssetEntrySchema = z\n  .object({\n    aclass: z.string().optional(),\n    altname: z.string(),\n    decimals: z.number().optional(),\n    display_decimals: z.number().optional(),\n    status: z.string().optional(),\n  })\n  .passthrough();\n\nexport const AssetsFileSchema = z.object({\n  error: z.array(z.unknown()).optional(),\n  result: z.record(z.string(), AssetEntrySchema),\n});\n\nexport type StrategyItem = z.infer<typeof StrategyItemSchema>;\nexport type AssetEntry = z.infer<typeof AssetEntrySchema>;\nexport type StrategiesFile = z.infer<typeof StrategiesFileSchema>;\nexport type AssetsFile = z.infer<typeof AssetsFileSchema>;\n"
 }
 ```
 
@@ -1087,7 +1087,7 @@ Todos have been modified successfully. Ensure that you continue to use the todo 
 ```json
 {
   "file_path": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/src/domain/transform.ts",
-  "content": "import { AssetEntry, StrategyItem } from \"./schemas\";\nimport { eligibleTiersFor } from \"./tiers\";\nimport { EarnProduct, Tier } from \"./types\";\n\nconst APY_THRESHOLD = 3;\n\nconst LOCK_TYPE_LABEL: Record<string, string> = {\n  instant: \"Instant\",\n  flex: \"Flexible\",\n  bonded: \"Bonded\",\n  timed: \"Timed\",\n  hybrid: \"Hybrid\",\n};\n\nconst YIELD_SOURCE_LABEL: Record<string, string> = {\n  staking: \"Staking\",\n  defi: \"DeFi\",\n  opt_in_rewards: \"Rewards\",\n};\n\n/**\n * Produces the customer-facing earn-product list for the requested tier.\n *\n * Pipeline:\n *   1. resolve asset code -> altname via the assets map\n *   2. compute apyValue from apr_estimate (conservative: use `low`)\n *   3. drop unallocatable, disabled, malformed, or sub-threshold rows\n *   4. apply tier filter\n *   5. sort by apyValue descending\n *\n * Note on APR vs APY: Kraken returns `apr_estimate`. We surface the lower\n * bound as `apyValue` to match Aurora's required output shape; converting\n * APR -> APY would require assumptions about compounding we can't validate.\n * Documented in solution-design-note.md.\n */\nexport function buildEarnProducts(\n  strategies: StrategyItem[],\n  assets: Record<string, AssetEntry>,\n  requestedTier: Tier,\n): EarnProduct[] {\n  const products: EarnProduct[] = [];\n\n  for (const strategy of strategies) {\n    const product = toEarnProduct(strategy, assets);\n    if (!product) continue;\n    if (!product.eligibleTiers.includes(requestedTier)) continue;\n    products.push(product);\n  }\n\n  products.sort((a, b) => b.apyValue - a.apyValue);\n  return products;\n}\n\nfunction toEarnProduct(\n  strategy: StrategyItem,\n  assets: Record<string, AssetEntry>,\n): EarnProduct | null {\n  if (!strategy.can_allocate) return null;\n\n  const asset = assets[strategy.asset];\n  if (!asset) return null;\n  if (asset.status !== 
+  "content": "import { AssetEntry, StrategyItem } from \"./schemas\";\nimport { eligibleTiersFor } from \"./tiers\";\nimport { EarnProduct, Tier } from \"./types\";\n\nconst APY_THRESHOLD = 3;\n\nconst LOCK_TYPE_LABEL: Record<string, string> = {\n  instant: \"Instant\",\n  flex: \"Flexible\",\n  bonded: \"Bonded\",\n  timed: \"Timed\",\n  hybrid: \"Hybrid\",\n};\n\nconst YIELD_SOURCE_LABEL: Record<string, string> = {\n  staking: \"Staking\",\n  defi: \"DeFi\",\n  opt_in_rewards: \"Rewards\",\n};\n\n/**\n * Produces the customer-facing earn-product list for the requested tier.\n *\n * Pipeline:\n *   1. resolve asset code -> altname via the assets map\n *   2. compute apyValue from apr_estimate (conservative: use `low`)\n *   3. drop unallocatable, disabled, malformed, or sub-threshold rows\n *   4. apply tier filter\n *   5. sort by apyValue descending\n *\n * Note on APR vs APY: the upstream provider returns `apr_estimate`. We surface the lower\n * bound as `apyValue` to match Aurora's required output shape; converting\n * APR -> APY would require assumptions about compounding we can't validate.\n * Documented in solution-design-note.md.\n */\nexport function buildEarnProducts(\n  strategies: StrategyItem[],\n  assets: Record<string, AssetEntry>,\n  requestedTier: Tier,\n): EarnProduct[] {\n  const products: EarnProduct[] = [];\n\n  for (const strategy of strategies) {\n    const product = toEarnProduct(strategy, assets);\n    if (!product) continue;\n    if (!product.eligibleTiers.includes(requestedTier)) continue;\n    products.push(product);\n  }\n\n  products.sort((a, b) => b.apyValue - a.apyValue);\n  return products;\n}\n\nfunction toEarnProduct(\n  strategy: StrategyItem,\n  assets: Record<string, AssetEntry>,\n): EarnProduct | null {\n  if (!strategy.can_allocate) return null;\n\n  const asset = assets[strategy.asset];\n  if (!asset) return null;\n  if (asset.status !== 
 ...(truncated)
 ```
 
@@ -3157,7 +3157,7 @@ Todos have been modified successfully. Ensure that you continue to use the todo 
 ```json
 {
   "file_path": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/README.md",
-  "content": "# Aurora Bank — Earn Products PoC\n\nA TypeScript + Express service that surfaces Kraken Earn yield strategies to Aurora Bank customers, filtered and tier-gated per Aurora's compliance requirements.\n\n## Run it\n\n```bash\ndocker-compose up\n```\n\nThat's it. The service is available at `http://localhost:3000`.\n\n## Endpoints\n\n| Method | Path | Description |\n|---|---|---|\n| `GET` | `/earn-products?tier={standard\\|premium\\|private}` | Tier-filtered earn-product list, sorted by APY descending |\n| `GET` | `/health` | Liveness probe → `{ \"status\": \"ok\" }` |\n\nExample:\n\n```bash\ncurl 'http://localhost:3000/earn-products?tier=standard'\n```\n\nReturns a JSON array shaped like:\n\n```json\n[\n  {\n    \"strategyId\": \"ESRFUO3-Q62XD-WIOIL7\",\n    \"asset\": \"DOT\",\n    \"displayName\": \"DOT Instant Staking\",\n    \"lockType\": \"instant\",\n    \"apyValue\": 8,\n    \"apyDisplay\": \"8.00%\",\n    \"eligibleTiers\": [\"Standard\", \"Premium\", \"Private\"],\n    \"minimumAmount\": \"0.01\"\n  }\n]\n```\n\nErrors return a structured response — never a raw stack trace:\n\n```json\n{ \"error\": { \"code\": \"INVALID_TIER\", \"message\": \"Unknown tier \\\"platinum\\\". Expected one of: standard, premium, private.\" } }\n```\n\n## Architecture\n\nThe service is a single Express process that loads the mounted `data/*.json` files once at boot, validates them with Zod, and serves a pure transform pipeline on each request. No database, no live API calls, no shared state.\n\n```\ndata/*.json ──► dataLoader ──► (Zod-validated, in-memory) ──► transform pipeline ──► JSON response\n                                                                ▲\n                                                                │\n                                                 tier query param ──┘\n```\n\nKey design choices:\n\n- **All JSON files in `data/` are read and classifie
+  "content": "# Aurora Bank — Earn Products PoC\n\nA TypeScript + Express service that surfaces upstream Earn yield strategies to Aurora Bank customers, filtered and tier-gated per Aurora's compliance requirements.\n\n## Run it\n\n```bash\ndocker-compose up\n```\n\nThat's it. The service is available at `http://localhost:3000`.\n\n## Endpoints\n\n| Method | Path | Description |\n|---|---|---|\n| `GET` | `/earn-products?tier={standard\\|premium\\|private}` | Tier-filtered earn-product list, sorted by APY descending |\n| `GET` | `/health` | Liveness probe → `{ \"status\": \"ok\" }` |\n\nExample:\n\n```bash\ncurl 'http://localhost:3000/earn-products?tier=standard'\n```\n\nReturns a JSON array shaped like:\n\n```json\n[\n  {\n    \"strategyId\": \"ESRFUO3-Q62XD-WIOIL7\",\n    \"asset\": \"DOT\",\n    \"displayName\": \"DOT Instant Staking\",\n    \"lockType\": \"instant\",\n    \"apyValue\": 8,\n    \"apyDisplay\": \"8.00%\",\n    \"eligibleTiers\": [\"Standard\", \"Premium\", \"Private\"],\n    \"minimumAmount\": \"0.01\"\n  }\n]\n```\n\nErrors return a structured response — never a raw stack trace:\n\n```json\n{ \"error\": { \"code\": \"INVALID_TIER\", \"message\": \"Unknown tier \\\"platinum\\\". Expected one of: standard, premium, private.\" } }\n```\n\n## Architecture\n\nThe service is a single Express process that loads the mounted `data/*.json` files once at boot, validates them with Zod, and serves a pure transform pipeline on each request. No database, no live API calls, no shared state.\n\n```\ndata/*.json ──► dataLoader ──► (Zod-validated, in-memory) ──► transform pipeline ──► JSON response\n                                                                ▲\n                                                                │\n                                                 tier query param ──┘\n```\n\nKey design choices:\n\n- **All JSON files in `data/` are read and classifie
 ...(truncated)
 ```
 
@@ -3188,7 +3188,7 @@ The file /Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/README.md ha
 ```json
 {
   "file_path": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/solution-design-note.md",
-  "content": "# Solution Design Note — Aurora Bank Earn Products Integration\n\n**Audience:** Aurora Bank backend engineering team\n**Author:** Solutions Engineering (Kraken)\n**Date:** 2026-05-24\n\n---\n\n## 1. What was built\n\nA standalone HTTP service that exposes Kraken Earn strategies to your React Native app, filtered to match your three customer tiers and Aurora's 3% APY floor.\n\n- **Endpoint:** `GET /earn-products?tier={standard|premium|private}`\n- **Returns:** a JSON array of strategies, sorted by APY descending, in the exact shape your frontend expects (`strategyId`, `asset`, `displayName`, `lockType`, `apyValue`, `apyDisplay`, `eligibleTiers`, `minimumAmount`)\n- **Errors:** always a structured `{ error: { code, message } }` envelope — never a raw stack trace\n\nThe PoC runs from mock JSON fixtures shaped exactly like the live Kraken API responses, so swapping to live calls is a small change (see §6).\n\n## 2. Kraken API calls and how we use them\n\nTwo endpoints from the Kraken Spot REST API:\n\n| Endpoint | Purpose | Fields we consume |\n|---|---|---|\n| `POST /private/Earn/Strategies` | The strategy catalogue — one entry per (asset × lock type) combination. | `id`, `asset`, `lock_type.type`, `lock_type.unbonding_period`, `apr_estimate.low`, `user_min_allocation`, `can_allocate`, `yield_source.type` |\n| `GET /public/Assets` | Per-asset metadata — used to translate Kraken's internal asset codes to the display tickers your customers expect. | `altname`, `status` |\n\n**Why both endpoints are required.** Kraken's strategy entries reference assets by their internal code (`XETH`, `XADA`, `XXTZ`). Your customers expect to see `ETH`, `ADA`, `XTZ` — the `altname` field on the asset record is the canonical normaliser. A strategy whose asset cannot be resolved in the assets map is dropped, since we can't produce a clean display.\n\n**On APR vs APY.** Kraken
+  "content": "# Solution Design Note — Aurora Bank Earn Products Integration\n\n**Audience:** Aurora Bank backend engineering team\n**Author:** Solutions Engineering (upstream)\n**Date:** 2026-05-24\n\n---\n\n## 1. What was built\n\nA standalone HTTP service that exposes upstream Earn strategies to your React Native app, filtered to match your three customer tiers and Aurora's 3% APY floor.\n\n- **Endpoint:** `GET /earn-products?tier={standard|premium|private}`\n- **Returns:** a JSON array of strategies, sorted by APY descending, in the exact shape your frontend expects (`strategyId`, `asset`, `displayName`, `lockType`, `apyValue`, `apyDisplay`, `eligibleTiers`, `minimumAmount`)\n- **Errors:** always a structured `{ error: { code, message } }` envelope — never a raw stack trace\n\nThe PoC runs from mock JSON fixtures shaped exactly like the live upstream API responses, so swapping to live calls is a small change (see §6).\n\n## 2. upstream API calls and how we use them\n\nTwo endpoints from the upstream Spot REST API:\n\n| Endpoint | Purpose | Fields we consume |\n|---|---|---|\n| `POST /private/Earn/Strategies` | The strategy catalogue — one entry per (asset × lock type) combination. | `id`, `asset`, `lock_type.type`, `lock_type.unbonding_period`, `apr_estimate.low`, `user_min_allocation`, `can_allocate`, `yield_source.type` |\n| `GET /public/Assets` | Per-asset metadata — used to translate the provider's internal asset codes to the display tickers your customers expect. | `altname`, `status` |\n\n**Why both endpoints are required.** the upstream strategy entries reference assets by their internal code (`XETH`, `XADA`, `XXTZ`). Your customers expect to see `ETH`, `ADA`, `XTZ` — the `altname` field on the asset record is the canonical normaliser. A strategy whose asset cannot be resolved in the assets map is dropped, since we can't produce a clean display.\n\n**On APR vs APY.** the upstream provider
 ...(truncated)
 ```
 
@@ -3308,7 +3308,7 @@ All built. Quick summary:
 - [src/routes/earnProducts.ts](src/routes/earnProducts.ts) — `GET /earn-products?tier=` handler
 - [src/domain/transform.ts](src/domain/transform.ts) — pure filter/map/sort pipeline
 - [src/domain/tiers.ts](src/domain/tiers.ts) — tier eligibility rules in one switch
-- [src/domain/schemas.ts](src/domain/schemas.ts) — Zod schemas for both Kraken file shapes
+- [src/domain/schemas.ts](src/domain/schemas.ts) — Zod schemas for both upstream file shapes
 - [src/dataLoader.ts](src/dataLoader.ts) — reads all `data/*.json`, classifies by shape
 - [src/__tests__/](src/__tests__/) — 16 Vitest unit tests, all passing
 
@@ -3625,8 +3625,8 @@ Your questions have been answered: "An unrelated container `kraken-app-1` (from 
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "in_progress"
     },
     {
@@ -3819,8 +3819,8 @@ No `networks:` block declared. The grading pipeline accepts this.
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "completed"
     },
     {
@@ -4039,8 +4039,8 @@ HTTP 200
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "completed"
     },
     {
@@ -4268,8 +4268,8 @@ The spec says the *grading container* will have no outbound network. I need to v
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "completed"
     },
     {
@@ -4616,8 +4616,8 @@ Status codes confirmed correct in the air-gapped container (400 / 400 / 404). Al
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "completed"
     },
     {
@@ -4908,8 +4908,8 @@ drwxr-xr-x  18 dgoswami  staff    576 May 24 20:21 ..
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "completed"
     },
     {
@@ -5051,8 +5051,8 @@ All host-to-container endpoints verified. Trailing python syntax glitch was cosm
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "completed"
     },
     {
@@ -5186,8 +5186,8 @@ All 16 tests pass inside the same `node:20-alpine` environment used by the Docke
 {
   "todos": [
     {
-      "content": "Free port 3000 (stop sibling kraken container)",
-      "activeForm": "Stopping sibling kraken container",
+      "content": "Free port 3000 (stop sibling upstream container)",
+      "activeForm": "Stopping sibling upstream container",
       "status": "completed"
     },
     {
@@ -7013,7 +7013,7 @@ Several strategies (`SOL`, `ATOM`, `KSM`, `FIL`) have:
 "allocation_restriction_info": ["tier"]
 ```
 
-These mean **Kraken's own tier system** restricts allocation — distinct from Aurora's tier system. We correctly exclude them via `can_allocate: false`, but if `can_allocate` were ever `true` with `allocation_restriction_info: ["tier"]`, we'd surface a strategy that customers can't actually use. The filter is structurally correct on today's data but coupled to one field. Worth a one-line guard.
+These mean **the upstream provider's own tier system** restricts allocation — distinct from Aurora's tier system. We correctly exclude them via `can_allocate: false`, but if `can_allocate` were ever `true` with `allocation_restriction_info: ["tier"]`, we'd surface a strategy that customers can't actually use. The filter is structurally correct on today's data but coupled to one field. Worth a one-line guard.
 
 ### 6. Submission format requirement (§Submission Package, opening line)
 
@@ -7084,7 +7084,7 @@ Acting on #2/#3/#4 (rewrite the design note) and #5 (git init).
 ```json
 {
   "file_path": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/solution-design-note.md",
-  "content": "# Solution Design Note — Aurora Bank Earn Products Integration\n\n**Audience:** Aurora Bank backend engineering team · **Date:** 2026-05-24\n\n## What this is\n\nA standalone HTTP service that exposes filtered Kraken Earn strategies to Aurora's React Native app. Runs as a single container via `docker-compose up`.\n\n- **Endpoint:** `GET /earn-products?tier={standard|premium|private}`\n- **Returns:** JSON array of strategies, sorted by APY descending, in your required output shape.\n- **Errors:** structured `{ error: { code, message } }` envelope. Never a raw stack.\n\n## Kraken endpoints we consume\n\n| Endpoint | Purpose | Fields used |\n|---|---|---|\n| `POST /private/Earn/Strategies` | Strategy catalogue | `id`, `asset`, `lock_type.type`, `apr_estimate.low`, `user_min_allocation`, `can_allocate`, `allocation_restriction_info`, `yield_source.type` |\n| `GET /public/Assets` | Asset metadata for ticker normalisation | `altname`, `status` |\n\nBoth are required: strategy entries reference assets by internal codes (`XETH`, `XADA`, `XXTZ`) — the assets endpoint provides the `altname` (`ETH`, `ADA`, `XTZ`) that your customers expect.\n\n## Business logic\n\n**Pre-filters** — a strategy is dropped before tier-matching if any of these hold:\n\n| Filter | Why |\n|---|---|\n| `can_allocate === false` | Kraken says the customer can't allocate. Surfacing it would mislead. |\n| `apr_estimate` missing | No APY → can't evaluate the 3% floor. |\n| `asset` missing in `assets.json` | No clean ticker / display name. |\n| `assets[asset].status !== \"enabled\"` | Asset disabled on platform. |\n| `apyValue < 3` | Aurora's compliance floor. |\n\n**Tier eligibility** — derived from `lock_type.type`:\n\n| Lock type | Visible to |\n|---|---|\n| `instant`, `flex` | Standard, Premium, Private |\n| `bonded`, `timed`, `hybrid` | Premium, Private |\n| anything else | Premium, Pri
+  "content": "# Solution Design Note — Aurora Bank Earn Products Integration\n\n**Audience:** Aurora Bank backend engineering team · **Date:** 2026-05-24\n\n## What this is\n\nA standalone HTTP service that exposes filtered upstream Earn strategies to Aurora's React Native app. Runs as a single container via `docker-compose up`.\n\n- **Endpoint:** `GET /earn-products?tier={standard|premium|private}`\n- **Returns:** JSON array of strategies, sorted by APY descending, in your required output shape.\n- **Errors:** structured `{ error: { code, message } }` envelope. Never a raw stack.\n\n## the upstream provider endpoints we consume\n\n| Endpoint | Purpose | Fields used |\n|---|---|---|\n| `POST /private/Earn/Strategies` | Strategy catalogue | `id`, `asset`, `lock_type.type`, `apr_estimate.low`, `user_min_allocation`, `can_allocate`, `allocation_restriction_info`, `yield_source.type` |\n| `GET /public/Assets` | Asset metadata for ticker normalisation | `altname`, `status` |\n\nBoth are required: strategy entries reference assets by internal codes (`XETH`, `XADA`, `XXTZ`) — the assets endpoint provides the `altname` (`ETH`, `ADA`, `XTZ`) that your customers expect.\n\n## Business logic\n\n**Pre-filters** — a strategy is dropped before tier-matching if any of these hold:\n\n| Filter | Why |\n|---|---|\n| `can_allocate === false` | the upstream provider says the customer can't allocate. Surfacing it would mislead. |\n| `apr_estimate` missing | No APY → can't evaluate the 3% floor. |\n| `asset` missing in `assets.json` | No clean ticker / display name. |\n| `assets[asset].status !== \"enabled\"` | Asset disabled on platform. |\n| `apyValue < 3` | Aurora's compliance floor. |\n\n**Tier eligibility** — derived from `lock_type.type`:\n\n| Lock type | Visible to |\n|---|---|\n| `instant`, `flex` | Standard, Premium, Private |\n| `bonded`, `timed`, `hybrid` | Premium, Private |\n| anything else | Premium, Pri
 ...(truncated)
 ```
 
@@ -7495,7 +7495,7 @@ A  tsconfig.json
 
 ```json
 {
-  "command": "git commit -m \"$(cat <<'EOF'\nInitial commit: Aurora Bank earn-products PoC\n\nTypeScript + Express service exposing filtered Kraken Earn strategies via\nGET /earn-products?tier={standard|premium|private}. Runs from data/*.json\nfixtures via docker-compose up. Includes Vitest unit suite, multi-stage\nDockerfile, and Aurora-facing solution design note.\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>\nEOF\n)\" 2>&1 | tail -20; echo; echo \"=== final status ===\"; git log --oneline 2>&1; echo; git status 2>&1 | head -10",
+  "command": "git commit -m \"$(cat <<'EOF'\nInitial commit: Aurora Bank earn-products PoC\n\nTypeScript + Express service exposing filtered upstream Earn strategies via\nGET /earn-products?tier={standard|premium|private}. Runs from data/*.json\nfixtures via docker-compose up. Includes Vitest unit suite, multi-stage\nDockerfile, and Aurora-facing solution design note.\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>\nEOF\n)\" 2>&1 | tail -20; echo; echo \"=== final status ===\"; git log --oneline 2>&1; echo; git status 2>&1 | head -10",
   "description": "Create initial commit"
 }
 ```
@@ -7847,7 +7847,7 @@ Explain the codebase to me
 28	 *   4. apply tier filter
 29	 *   5. sort by apyValue descending
 30	 *
-31	 * Note on APR vs APY: Kraken returns `apr_estimate`. We surface the lower
+31	 * Note on APR vs APY: the upstream provider returns `apr_estimate`. We surface the lower
 32	 * bound as `apyValue` to match Au
 ...(truncated)
 ```
@@ -7960,7 +7960,7 @@ The codebase is split into three layers — **boundary** (HTTP + filesystem), **
 | [docker-compose.yml](./docker-compose.yml) | 7 lines. Builds the image, publishes port 3000, bind-mounts `./data → /app/data:ro` |
 | [package.json](./package.json) | `express` + `zod` runtime; `typescript` + `vitest` + `ts-node-dev` dev |
 | [tsconfig.json](./tsconfig.json) | Strict mode, ES2022 target, CommonJS output, sourcemaps on |
-| [data/](./data/) | Mock Kraken responses, mounted in at runtime |
+| [data/](./data/) | Mock upstream-provider responses, mounted in at runtime |
 | [src/](./src/) | Source — ten `.ts` files, ~578 lines total |
 
 ## The `src/` tree, top-down
@@ -7999,9 +7999,9 @@ This is the only file in the codebase that touches the filesystem. Three deliber
 
 ### [src/domain/schemas.ts](./src/domain/schemas.ts) — Validation contracts (66 lines)
 
-Zod schemas for both Kraken response shapes. Three patterns to note:
+Zod schemas for both upstream response shapes. Three patterns to note:
 
-- **`.passthrough()` on objects** — accept unknown fields without dropping them. Kraken adds fields to their API regularly; we don't want our service to break the moment they ship a new optional field.
+- **`.passthrough()` on objects** — accept unknown fields without dropping them. The upstream provider adds fields to their API regularly; we don't want our service to break the moment they ship a new optional field.
 - **Strings, not numbers, for amounts.** `apr_estimate.low`, `user_min_allocation`, `user_cap` are all decimal strings. Crypto amounts can exceed JS `Number` precision (e.g. base units of ETH). We preserve the string form for `minimumAmount` in the output and only `Number()` the APR where comparison is needed.
 - **TS types are inferred from schemas** (`z.infer<typeof X>`). One source of truth — schemas drive both validation and typing.
 
@@ -8465,7 +8465,7 @@ transform.test.ts
 28	 *   4. apply tier filter
 29	 *   5. sort by apyValue descending
 30	 *
-31	 * Note on APR vs APY: Kraken returns `apr_estimate`. We surface the lower
+31	 * Note on APR vs APY: the upstream provider returns `apr_estimate`. We surface the lower
 32	 * bound as `apyValue` to match Au
 ...(truncated)
 ```
@@ -11562,8 +11562,8 @@ The file /Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/README.md ha
 {
   "replace_all": false,
   "file_path": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken-Opus/README.md",
-  "old_string": "## Known limitations / what I'd add with more time\n\n- **No integration test** of the HTTP layer (supertest would slot in easily) — the transform and tier logic are covered by unit tests, but the route handler is only verified via manual curl.\n- **APR is surfaced as APY.** Kraken returns `apr_estimate`; converting to true APY would require assumptions about compounding frequency that vary by `payout_frequency`. We use the conservative `low` bound as `apyValue` — see [solution-design-note.md](./solution-design-note.md) §2.",
-  "new_string": "## Known limitations / what I'd add with more time\n\n- **APR is surfaced as APY.** Kraken returns `apr_estimate`; converting to true APY would require assumptions about compounding frequency that vary by `payout_frequency`. We use the conservative `low` bound as `apyValue` — see [solution-design-note.md](./solution-design-note.md) §2."
+  "old_string": "## Known limitations / what I'd add with more time\n\n- **No integration test** of the HTTP layer (supertest would slot in easily) — the transform and tier logic are covered by unit tests, but the route handler is only verified via manual curl.\n- **APR is surfaced as APY.** the upstream provider returns `apr_estimate`; converting to true APY would require assumptions about compounding frequency that vary by `payout_frequency`. We use the conservative `low` bound as `apyValue` — see [solution-design-note.md](./solution-design-note.md) §2.",
+  "new_string": "## Known limitations / what I'd add with more time\n\n- **APR is surfaced as APY.** the upstream provider returns `apr_estimate`; converting to true APY would require assumptions about compounding frequency that vary by `payout_frequency`. We use the conservative `low` bound as `apyValue` — see [solution-design-note.md](./solution-design-note.md) §2."
 }
 ```
 
