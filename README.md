@@ -1,6 +1,6 @@
 # Aurora Bank — Earn Products PoC
 
-A TypeScript + Express service that surfaces Kraken Earn yield strategies to Aurora Bank customers, filtered and tier-gated per Aurora's compliance requirements.
+A TypeScript + Express service that surfaces Earn yield strategies to Aurora Bank customers, filtered and tier-gated per Aurora's compliance requirements.
 
 ## Run it
 
@@ -108,7 +108,7 @@ npm test
 
 ## Known limitations / what I'd add with more time
 
-- **APR is surfaced as APY.** Kraken returns `apr_estimate`; converting to true APY would require assumptions about compounding frequency that vary by `payout_frequency`. We use the conservative `low` bound as `apyValue` — see [solution-design-note.md](./solution-design-note.md) §2.
+- **APR is surfaced as APY.** API returns `apr_estimate`; converting to true APY would require assumptions about compounding frequency that vary by `payout_frequency`. We use the conservative `low` bound as `apyValue` — see [solution-design-note.md](./solution-design-note.md) §2.
 - **No request logging.** A real deployment would add `pino` or similar with request IDs.
 - **No rate limiting.** Aurora's frontend will fan out reads — an `express-rate-limit` ahead of the route would be appropriate.
 - **Display names are derived, not human-curated.** We compose `<ticker> <lock-style> <yield-source>` (e.g. `ETH Instant Staking`). The brief's sample (`"Ethereum Flexible Staking"`) implies full asset names; producing those needs a static lookup table not in the mock data.
