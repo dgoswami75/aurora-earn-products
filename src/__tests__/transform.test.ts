@@ -109,4 +109,130 @@ describe("buildEarnProducts", () => {
     expect(out.apyValue).toBe(4.25);
     expect(out.apyDisplay).toBe("4.25%");
   });
+
+  it("returns an empty array when input is empty", () => {
+    expect(buildEarnProducts([], ASSETS, "Premium")).toEqual([]);
+  });
+
+  it("passes a strategy at exactly the 3.00% boundary (>= 3, not > 3)", () => {
+    const strategies = [
+      strat({ id: "S1", asset: "XETH", apr_estimate: { low: "3.0", high: "3.0" } }),
+    ];
+    expect(buildEarnProducts(strategies, ASSETS, "Premium")).toHaveLength(1);
+  });
+
+  it("treats Number('2.9999999999999999') as 3 (the POL/MATIC IEEE-754 case)", () => {
+    // 2.999...9 with enough nines to overflow Float64 precision parses as 3.0
+    // exactly. We documented this as a soft cliff in solution-design-note.md;
+    // this test locks the behaviour in.
+    const strategies = [
+      strat({
+        id: "POL",
+        asset: "XETH",
+        apr_estimate: { low: "2.9999999999999999", high: "3.0000000000000001" },
+      }),
+    ];
+    const result = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(result).toHaveLength(1);
+    expect(result[0].apyValue).toBe(3);
+  });
+
+  it("drops a strategy whose apr_estimate.low is not a finite number", () => {
+    const strategies = [
+      strat({
+        id: "S1",
+        asset: "XETH",
+        apr_estimate: { low: "not-a-number", high: "5.0" },
+      }),
+    ];
+    expect(buildEarnProducts(strategies, ASSETS, "Premium")).toHaveLength(0);
+  });
+
+  it("falls back to 'Earn' in displayName when yield_source is missing", () => {
+    const strategies = [
+      strat({ id: "S1", asset: "XETH", yield_source: undefined }),
+    ];
+    const [out] = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(out.displayName).toBe("ETH Instant Earn");
+  });
+
+  it("capitalises an unknown yield_source for displayName", () => {
+    const strategies = [
+      strat({
+        id: "S1",
+        asset: "XETH",
+        yield_source: { type: "novel_source" },
+      }),
+    ];
+    const [out] = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(out.displayName).toBe("ETH Instant Novel_source");
+  });
+
+  it("capitalises an unknown lock_type for displayName", () => {
+    const strategies = [
+      strat({
+        id: "S1",
+        asset: "XETH",
+        lock_type: { type: "exotic" },
+      }),
+    ];
+    const [out] = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(out.displayName).toBe("ETH Exotic Staking");
+    // Unknown lock_type defaults to Premium+Private — still visible here
+    expect(out.eligibleTiers).toEqual(["Premium", "Private"]);
+  });
+
+  it("formats whole-number APY with two decimals (4 -> '4.00%')", () => {
+    const strategies = [
+      strat({ id: "S1", asset: "XETH", apr_estimate: { low: "4", high: "4" } }),
+    ];
+    const [out] = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(out.apyValue).toBe(4);
+    expect(out.apyDisplay).toBe("4.00%");
+  });
+
+  it("preserves minimumAmount as a string (avoiding precision loss)", () => {
+    const strategies = [
+      strat({ id: "S1", asset: "XETH", user_min_allocation: "0.0000000001" }),
+    ];
+    const [out] = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(out.minimumAmount).toBe("0.0000000001");
+    expect(typeof out.minimumAmount).toBe("string");
+  });
+
+  it("performs a stable sort when two strategies share an APY", () => {
+    // ES2019+ Array#sort is required to be stable. Lock the contract in:
+    // for equal apyValue, input order must be preserved.
+    const strategies = [
+      strat({ id: "FIRST", asset: "XETH", apr_estimate: { low: "5.0", high: "5.0" } }),
+      strat({ id: "SECOND", asset: "DOT", apr_estimate: { low: "5.0", high: "5.0" } }),
+      strat({ id: "THIRD", asset: "XADA", apr_estimate: { low: "5.0", high: "5.0" } }),
+    ];
+    const result = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(result.map((r) => r.strategyId)).toEqual(["FIRST", "SECOND", "THIRD"]);
+  });
+
+  it("rounds 4.255 up to 4.26% (IEEE-754 representation rounds positive)", () => {
+    // The float64 closest to 4.255 is 4.25500000000000043..., so 4.255 * 100
+    // is 425.50000000000006, which Math.round() takes to 426. This is a
+    // deterministic quirk of IEEE-754 — the test exists so a future refactor
+    // (e.g. swapping Math.round for a banker's-rounding helper) makes the
+    // change of behaviour visible.
+    const strategies = [
+      strat({ id: "S1", asset: "XETH", apr_estimate: { low: "4.255", high: "4.255" } }),
+    ];
+    const [out] = buildEarnProducts(strategies, ASSETS, "Premium");
+    expect(out.apyDisplay).toBe("4.26%");
+  });
+
+  it("rounds clear-of-boundary values unambiguously", () => {
+    const strategies = [
+      strat({ id: "A", asset: "XETH", apr_estimate: { low: "4.241", high: "4.241" } }),
+      strat({ id: "B", asset: "DOT", apr_estimate: { low: "4.259", high: "4.259" } }),
+    ];
+    const out = buildEarnProducts(strategies, ASSETS, "Premium");
+    const byId = Object.fromEntries(out.map((o) => [o.strategyId, o.apyDisplay]));
+    expect(byId.A).toBe("4.24%");
+    expect(byId.B).toBe("4.26%");
+  });
 });

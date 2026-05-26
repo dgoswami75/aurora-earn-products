@@ -9,7 +9,10 @@ const PREMIUM_AND_PRIVATE: Tier[] = ["Premium", "Private"];
  *
  *   - Standard customers see only flexible / instant-access strategies.
  *     We treat `lock_type.type === "instant"` and `"flex"` as flexible.
- *   - Bonded strategies (with an unbonding period) are Premium+Private only.
+ *   - All bonded strategies are Premium+Private only. The brief restricts
+ *     bonded-with-unbonding-period to Premium+Private; we extend that to
+ *     all bonded variants (none of the sample fixtures have zero unbonding)
+ *     because the conservative choice is to hide any lockup from Standard.
  *   - `timed` and `hybrid` lock types are not covered by the brief.
  *     Both impose a lockup or delayed-withdrawal — we default to
  *     Premium+Private and document the choice in solution-design-note.md.
