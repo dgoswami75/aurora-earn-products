@@ -2351,10 +2351,10 @@ Error response from daemon: failed to set up container networking: driver failed
 
 ```
 COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-node    82540 dgoswami   12u  IPv4 0x5ff9f235b8f0dc0e      0t0  TCP *:hbci (LISTEN)
+node    82540 <user>   12u  IPv4 0x5ff9f235b8f0dc0e      0t0  TCP *:hbci (LISTEN)
 ---
-dgoswami         82540   0.0  0.2 435879712  58144   ??  S     8:06PM   0:00.13 node dist/server.js
-dgoswami         82538   0.0  0.0 435308192   3168   ??  Ss    8:06PM   0:00.01 /bin/zsh -c source /Users/dgoswami/.claude/shell-snapshots/snapshot-zsh-1779669784164-tdhtxd.sh 2>/dev/null || true && setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUAL 2>/dev/null || true && eval 'node dist/server.js' < /dev/null && pwd -P >| /tmp/claude-470c-cwd
+<user>         82540   0.0  0.2 435879712  58144   ??  S     8:06PM   0:00.13 node dist/server.js
+<user>         82538   0.0  0.0 435308192   3168   ??  Ss    8:06PM   0:00.01 /bin/zsh -c source /Users/<user>/.claude/shell-snapshots/snapshot-zsh-1779669784164-tdhtxd.sh 2>/dev/null || true && setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUAL 2>/dev/null || true && eval 'node dist/server.js' < /dev/null && pwd -P >| /tmp/claude-470c-cwd
 ```
 
 </details>
@@ -2746,7 +2746,7 @@ Error response from daemon: failed to set up container networking: driver failed
 
 ```
 COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-curl    83205 dgoswami    5u  IPv4 0x14c909fb43c9f988      0t0  TCP 10.0.0.21:61263->192.168.5.1:hbci (SYN_SENT)
+curl    83205 <user>    5u  IPv4 0x14c909fb43c9f988      0t0  TCP 10.0.0.21:61263->192.168.5.1:hbci (SYN_SENT)
 ---
 ```
 
@@ -3489,7 +3489,7 @@ CONTAINER ID   IMAGE        COMMAND                  CREATED         STATUS     
 94d1a7b13999   asgn-app   "docker-entrypoint.s…"   5 minutes ago   Up 5 minutes   0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp   asgn-app-1
 ---
 COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-ssh     84781 dgoswami   10u  IPv4 0x7840515dee082ba3      0t0  TCP *:3000 (LISTEN)
+ssh     84781 <user>   10u  IPv4 0x7840515dee082ba3      0t0  TCP *:3000 (LISTEN)
 ```
 
 </details>
@@ -4881,10 +4881,10 @@ data/strategies-extra.json
 data/unrelated.json
 
 total 32
-drwxr-xr-x@  4 dgoswami  staff    128 May 24 20:24 .
-drwxr-xr-x  18 dgoswami  staff    576 May 24 20:21 ..
--rw-r--r--@  1 dgoswami  staff   2575 May  6 09:16 assets.json
--rw-r--r--@  1 dgoswami  staff  10482 May  6 09:16 strategies.json
+drwxr-xr-x@  4 <user>  staff    128 May 24 20:24 .
+drwxr-xr-x  18 <user>  staff    576 May 24 20:21 ..
+-rw-r--r--@  1 <user>  staff   2575 May  6 09:16 assets.json
+-rw-r--r--@  1 <user>  staff  10482 May  6 09:16 strategies.json
 ```
 
 </details>
@@ -5470,10 +5470,10 @@ Deleted: sha256:241553a283dea8bf5fee5e6abe847197fdb1ebe19ddb336d8d3a44d9b1024bb0
 
 === Data dir contents (should be 2 files only) ===
 total 32
-drwxr-xr-x@  4 dgoswami  staff    128 May 24 20:24 .
-drwxr-xr-x  18 dgoswami  staff    576 May 24 20:21 ..
--rw-r--r--@  1 dgoswami  staff   2575 May  6 09:16 assets.json
--rw-r--r--@  1 dgoswami  staff  10482 May  6 09:16 strategies.json
+drwxr-xr-x@  4 <user>  staff    128 May 24 20:24 .
+drwxr-xr-x  18 <user>  staff    576 May 24 20:21 ..
+-rw-r--r--@  1 <user>  staff   2575 May  6 09:16 assets.json
+-rw-r--r--@  1 <user>  staff  10482 May  6 09:16 strategies.json
 ```
 
 </details>
@@ -7277,9 +7277,9 @@ I see `.claude/` showing up — let me check what's in it before deciding whethe
 .claude/settings.local.json
 ---
 total 8
-drwxr-xr-x@  3 dgoswami  staff   96 May 24 20:20 .
-drwxr-xr-x  19 dgoswami  staff  608 May 24 21:04 ..
--rw-r--r--@  1 dgoswami  staff  579 May 24 20:20 settings.local.json
+drwxr-xr-x@  3 <user>  staff   96 May 24 20:20 .
+drwxr-xr-x  19 <user>  staff  608 May 24 21:04 ..
+-rw-r--r--@  1 <user>  staff  579 May 24 20:20 settings.local.json
 ```
 
 </details>
