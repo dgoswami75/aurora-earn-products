@@ -351,7 +351,7 @@ Here's the field-by-field mapping and the join model between the two files.
 │  result.items[]  (array)                    result  (map keyed by code)  │
 │                                                                          │
 │  ┌───────────────────────────┐              ┌────────────────────────┐   │
-│  │ id              ──────────┼──► strategyId│ <KRAKEN_CODE>          │   │
+│  │ id              ──────────┼──► strategyId│ <ASGN_CODE>          │   │
 │  │ asset       ────join─key──┼──────────────► aclass                 │   │
 │  │ asset_class               │              │ altname    ─► asset    │   │
 │  │ lock_type.type ───────────┼──► lockType  │ decimals               │   │
@@ -3541,12 +3541,12 @@ Labels: {
   "com.docker.compose.image.builder": "classic",
   "com.docker.compose.oneoff": "False",
   "com.docker.compose.project": "asgn",
-  "com.docker.compose.project.config_files": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken/docker-compose.yml",
-  "com.docker.compose.project.working_dir": "/Users/dgoswami/Documents/Projects/ClaudeTests/Kraken",
+  "com.docker.compose.project.config_files": "<Sibling Working Directory>/docker-compose.yml",
+  "com.docker.compose.project.working_dir": "<Sibling Working Directory>",
   "com.docker.compose.service": "app",
   "com.docker.compose.version": "5.1.4"
 }
-Working dir on host: /Users/dgoswami/Documents/Projects/ClaudeTests/Kraken
+Working dir on host: <Sibling Working Directory>
 ```
 
 </details>
@@ -3561,7 +3561,7 @@ Working dir on host: /Users/dgoswami/Documents/Projects/ClaudeTests/Kraken
 
 ## Assistant <sup>5/24/2026, 8:18:41 PM</sup>
 
-The stale container is from a sibling project at `~/Documents/Projects/ClaudeTests/Kraken/` — looks like another version of this assessment. I need to know whether to stop it before I can bind port 3000 for the test.
+The stale container is from a sibling project at `<Sibling Working Directory>/` — looks like another version of this assessment. I need to know whether to stop it before I can bind port 3000 for the test.
 
 
 ---
@@ -3575,7 +3575,7 @@ The stale container is from a sibling project at `~/Documents/Projects/ClaudeTes
 {
   "questions": [
     {
-      "question": "An unrelated container `asgn-app-1` (from a sibling project at `~/Documents/Projects/ClaudeTests/Kraken/`) is currently using port 3000. To run this project's container, I need port 3000 free. How should I proceed?",
+      "question": "An unrelated container `asgn-app-1` (from a sibling project at `<Sibling Working Directory>/`) is currently using port 3000. To run this project's container, I need port 3000 free. How should I proceed?",
       "header": "Port 3000",
       "multiSelect": false,
       "options": [
@@ -3608,7 +3608,7 @@ The stale container is from a sibling project at `~/Documents/Projects/ClaudeTes
 <summary>Tool Result</summary>
 
 ```
-Your questions have been answered: "An unrelated container `asgn-app-1` (from a sibling project at `~/Documents/Projects/ClaudeTests/Kraken/`) is currently using port 3000. To run this project's container, I need port 3000 free. How should I proceed?"="Stop the sibling container". You can now continue with these answers in mind.
+Your questions have been answered: "An unrelated container `asgn-app-1` (from a sibling project at `<Sibling Working Directory>/`) is currently using port 3000. To run this project's container, I need port 3000 free. How should I proceed?"="Stop the sibling container". You can now continue with these answers in mind.
 ```
 
 </details>
@@ -3699,7 +3699,7 @@ Todos have been modified successfully. Ensure that you continue to use the todo 
 
 ```json
 {
-  "command": "cd /Users/dgoswami/Documents/Projects/ClaudeTests/Kraken && docker compose down 2>&1 | tail -5",
+  "command": "cd <Sibling Working Directory> && docker compose down 2>&1 | tail -5",
   "description": "Stop sibling project container",
   "timeout": 30000
 }
@@ -4381,7 +4381,7 @@ No outbound HTTP clients in our source. Now the runtime test: disconnect the con
 
 ```json
 {
-  "command": "echo \"=== BEFORE disconnect: prove service works ===\"; curl -sf 'http://localhost:3000/earn-products?tier=premium' | python3 -c \"import sys, json; print(f'{len(json.load(sys.stdin))} items')\"; echo; echo \"=== Disconnect container from compose network ===\"; docker network disconnect asgn-opus_default asgn-opus-aurora-earn-1 2>&1; echo; echo \"=== Container still alive? ===\"; docker ps --filter name=asgn-opus-aurora-earn-1 --format \"{{.Status}}\"; echo; echo \"=== From inside: prove no internet ===\"; docker exec asgn-opus-aurora-earn-1 sh -c 'wget -T 3 -qO- https://api.kraken.com/0/public/Assets 2>&1; echo \"wget_exit=$?\"' || true",
+  "command": "echo \"=== BEFORE disconnect: prove service works ===\"; curl -sf 'http://localhost:3000/earn-products?tier=premium' | python3 -c \"import sys, json; print(f'{len(json.load(sys.stdin))} items')\"; echo; echo \"=== Disconnect container from compose network ===\"; docker network disconnect asgn-opus_default asgn-opus-aurora-earn-1 2>&1; echo; echo \"=== Container still alive? ===\"; docker ps --filter name=asgn-opus-aurora-earn-1 --format \"{{.Status}}\"; echo; echo \"=== From inside: prove no internet ===\"; docker exec asgn-opus-aurora-earn-1 sh -c 'wget -T 3 -qO- https://<Upstream API>/0/public/Assets 2>&1; echo \"wget_exit=$?\"' || true",
   "description": "Verify behavior with no network",
   "timeout": 30000
 }
@@ -4407,7 +4407,7 @@ No outbound HTTP clients in our source. Now the runtime test: disconnect the con
 Up 27 seconds
 
 === From inside: prove no internet ===
-wget: bad address 'api.kraken.com'
+wget: bad address '<Upstream API>'
 wget_exit=1
 ```
 
@@ -4486,7 +4486,7 @@ Disconnecting from the bridge dropped loopback too (some Docker variants behave 
 
 ```json
 {
-  "command": "echo \"=== Reconnect for proper cleanup ===\"; docker network connect asgn-opus_default asgn-opus-aurora-earn-1 2>&1 || true; docker-compose down 2>&1 | tail -3; echo; echo \"=== Fresh container with --network none (no outbound at all) ===\"; docker run -d --rm --name aurora-airgap --network none -v \"$(pwd)/data:/app/data:ro\" asgn-opus-aurora-earn:latest 2>&1; sleep 2; echo; echo \"=== Container alive? ===\"; docker ps --filter name=aurora-airgap --format \"{{.Status}}\"; echo \"=== Logs (data must load from /data, not internet) ===\"; docker logs aurora-airgap 2>&1; echo; echo \"=== Hit endpoints from inside the air-gapped container ===\"; echo \"-- /health --\"; docker exec aurora-airgap wget -qO- http://127.0.0.1:3000/health; echo; echo \"-- /earn-products?tier=premium --\"; docker exec aurora-airgap wget -qO- 'http://127.0.0.1:3000/earn-products?tier=premium' | python3 -c \"import sys, json; d=json.load(sys.stdin); print(f'{len(d)} items returned'); [print(f'  {i[\\\"strategyId\\\"]} | {i[\\\"asset\\\"]:6} | {i[\\\"lockType\\\"]:8} | {i[\\\"apyDisplay\\\"]}') for i in d]\"; echo; echo \"-- /earn-products?tier=foo (structured error) --\"; docker exec aurora-airgap sh -c 'wget -qO- \"http://127.0.0.1:3000/earn-products?tier=foo\" 2>/dev/null || wget -O- \"http://127.0.0.1:3000/earn-products?tier=foo\" 2>&1 | grep -E \"^\\{\"'; echo; echo \"-- Confirm: no internet access from container --\"; docker exec aurora-airgap sh -c 'wget -T 2 -qO- https://api.kraken.com/0/public/Assets 2>&1 || echo \"internet blocked as expected\"'",
+  "command": "echo \"=== Reconnect for proper cleanup ===\"; docker network connect asgn-opus_default asgn-opus-aurora-earn-1 2>&1 || true; docker-compose down 2>&1 | tail -3; echo; echo \"=== Fresh container with --network none (no outbound at all) ===\"; docker run -d --rm --name aurora-airgap --network none -v \"$(pwd)/data:/app/data:ro\" asgn-opus-aurora-earn:latest 2>&1; sleep 2; echo; echo \"=== Container alive? ===\"; docker ps --filter name=aurora-airgap --format \"{{.Status}}\"; echo \"=== Logs (data must load from /data, not internet) ===\"; docker logs aurora-airgap 2>&1; echo; echo \"=== Hit endpoints from inside the air-gapped container ===\"; echo \"-- /health --\"; docker exec aurora-airgap wget -qO- http://127.0.0.1:3000/health; echo; echo \"-- /earn-products?tier=premium --\"; docker exec aurora-airgap wget -qO- 'http://127.0.0.1:3000/earn-products?tier=premium' | python3 -c \"import sys, json; d=json.load(sys.stdin); print(f'{len(d)} items returned'); [print(f'  {i[\\\"strategyId\\\"]} | {i[\\\"asset\\\"]:6} | {i[\\\"lockType\\\"]:8} | {i[\\\"apyDisplay\\\"]}') for i in d]\"; echo; echo \"-- /earn-products?tier=foo (structured error) --\"; docker exec aurora-airgap sh -c 'wget -qO- \"http://127.0.0.1:3000/earn-products?tier=foo\" 2>/dev/null || wget -O- \"http://127.0.0.1:3000/earn-products?tier=foo\" 2>&1 | grep -E \"^\\{\"'; echo; echo \"-- Confirm: no internet access from container --\"; docker exec aurora-airgap sh -c 'wget -T 2 -qO- https://<Upstream API>/0/public/Assets 2>&1 || echo \"internet blocked as expected\"'",
   "description": "Full air-gapped container test simulating grading environment",
   "timeout": 60000
 }
@@ -5299,7 +5299,7 @@ All conditions from `ASSESSMENT.md §3 "Service Interface"` verified against a l
 | 3 | Service accessible at `http://localhost:3000` after compose up | `curl http://localhost:3000/health` from host | HTTP 200 `{"status":"ok"}` |
 | 4 | No credentials/env vars/manual config required | Compose file slimmed — zero `environment:` entries; defaults baked into code (`PORT=3000`, `DATA_DIR=./data`) | service boots and serves correctly |
 | 5 | **Only default compose network** (no custom `networks:` block) | `grep -n "networks:" docker-compose.yml` | exit 1 — no block declared |
-| 6 | **Runtime network closed** — no outbound calls at runtime | Static: `grep` for http clients in `src/` → 0 hits. Runtime: `docker run --network none` — container boots, all data loads from `/data`, all endpoints serve correctly, `wget api.kraken.com` from inside fails with "bad address" | passes |
+| 6 | **Runtime network closed** — no outbound calls at runtime | Static: `grep` for http clients in `src/` → 0 hits. Runtime: `docker run --network none` — container boots, all data loads from `/data`, all endpoints serve correctly, `wget <Upstream API>` from inside fails with "bad address" | passes |
 | 7 | All `*.json` files in `data/` are read | Added a third strategies file → `Loaded 15 strategies` (was 14), new XBT@12.34% appears at top of standard tier | passes |
 | 8 | Bad/unknown JSON files don't crash boot | Added `unrelated.json` → log: `Skipping unrelated.json — does not match strategies or assets schema`; service stays healthy | passes |
 | 9 | Errors return structured response, never a raw stack | Tested no-tier, bad-tier, 404 — all return `{ "error": { "code, "message" } }` with correct HTTP codes (400, 400, 404) | passes |
@@ -6142,7 +6142,7 @@ Todos have been modified successfully. Ensure that you continue to use the todo 
 
 ```json
 {
-  "command": "echo \"=== Tear down compose container ===\"; docker-compose down 2>&1 | tail -3; echo; echo \"=== Static check: no http client deps in src/ ===\"; grep -rEn \"require\\(['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"from ['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"fetch\\(\" src/ 2>&1 || true; echo \"(no matches expected above)\"; echo; echo \"=== Start container with --network none ===\"; docker run -d --rm --name aurora-airgap --network none -v \"$(pwd)/data:/app/data:ro\" asgn-opus-aurora-earn:latest 2>&1; sleep 2; echo; echo \"=== Container status ===\"; docker ps --filter name=aurora-airgap --format \"table {{.Names}}\\t{{.Status}}\\t{{.Networks}}\"; echo; echo \"=== Boot logs (data loaded from /app/data) ===\"; docker logs aurora-airgap 2>&1; echo; echo \"=== Confirm no outbound internet possible ===\"; docker exec aurora-airgap sh -c 'wget -T 2 -qO- https://api.kraken.com/0/public/Assets 2>&1 || echo \"CONFIRMED: no internet\"'; echo; echo \"=== Endpoints serve correctly from inside (loopback only) ===\"; echo \"-- /health --\"; docker exec aurora-airgap wget -qO- http://127.0.0.1:3000/health; echo; echo \"-- /earn-products?tier=premium item count --\"; docker exec aurora-airgap wget -qO- 'http://127.0.0.1:3000/earn-products?tier=premium' | node -e 'let s=\"\"; process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const a=JSON.parse(s); console.log(a.length+\" items\"); a.forEach(i=>console.log(\" \",i.strategyId,i.asset,i.lockType,i.apyDisplay))})'",
+  "command": "echo \"=== Tear down compose container ===\"; docker-compose down 2>&1 | tail -3; echo; echo \"=== Static check: no http client deps in src/ ===\"; grep -rEn \"require\\(['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"from ['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"fetch\\(\" src/ 2>&1 || true; echo \"(no matches expected above)\"; echo; echo \"=== Start container with --network none ===\"; docker run -d --rm --name aurora-airgap --network none -v \"$(pwd)/data:/app/data:ro\" asgn-opus-aurora-earn:latest 2>&1; sleep 2; echo; echo \"=== Container status ===\"; docker ps --filter name=aurora-airgap --format \"table {{.Names}}\\t{{.Status}}\\t{{.Networks}}\"; echo; echo \"=== Boot logs (data loaded from /app/data) ===\"; docker logs aurora-airgap 2>&1; echo; echo \"=== Confirm no outbound internet possible ===\"; docker exec aurora-airgap sh -c 'wget -T 2 -qO- https://<Upstream API>/0/public/Assets 2>&1 || echo \"CONFIRMED: no internet\"'; echo; echo \"=== Endpoints serve correctly from inside (loopback only) ===\"; echo \"-- /health --\"; docker exec aurora-airgap wget -qO- http://127.0.0.1:3000/health; echo; echo \"-- /earn-products?tier=premium item count --\"; docker exec aurora-airgap wget -qO- 'http://127.0.0.1:3000/earn-products?tier=premium' | node -e 'let s=\"\"; process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const a=JSON.parse(s); console.log(a.length+\" items\"); a.forEach(i=>console.log(\" \",i.strategyId,i.asset,i.lockType,i.apyDisplay))})'",
   "description": "Air-gapped container verification",
   "timeout": 60000
 }
@@ -6179,7 +6179,7 @@ aurora-airgap   Up 2 seconds   none
 [server] Aurora earn-products service listening on http://0.0.0.0:3000
 
 === Confirm no outbound internet possible ===
-wget: bad address 'api.kraken.com'
+wget: bad address '<Upstream API>'
 CONFIRMED: no internet
 
 === Endpoints serve correctly from inside (loopback only) ===
@@ -6200,7 +6200,7 @@ CONFIRMED: no internet
 
 ## Assistant <sup>5/24/2026, 8:32:13 PM</sup>
 
-Air-gapped: data loads from `/app/data`, all endpoints serve, `api.kraken.com` unreachable. The grading-environment runtime constraint is fully satisfied.
+Air-gapped: data loads from `/app/data`, all endpoints serve, `<Upstream API>` unreachable. The grading-environment runtime constraint is fully satisfied.
 
 ### Step 8: Extra JSON file picked up automatically
 
@@ -6846,7 +6846,7 @@ Every runtime condition in `ASSESSMENT.md` exercised, end-to-end, against a fres
 | 4 | No credentials / env vars / manual config required | `docker-compose.yml` has zero `environment:` entries; defaults baked into source | service boots and serves correctly |
 | 5 | **Only the default compose network** (no custom `networks:` block) | `grep -nE "^networks:\|^\s+networks:" docker-compose.yml` → exit 1 | ✅ |
 | 6 | **Build-time network open** | Dockerfile `RUN npm ci` succeeded — confirmed dependency fetch works | ✅ |
-| 7 | **Runtime network closed** — no outbound calls | Static: 0 http client imports in src/. Runtime: `docker run --network none …` — container boots, all data loads from `/app/data`, all endpoints serve, `wget api.kraken.com` fails with `bad address` | ✅ |
+| 7 | **Runtime network closed** — no outbound calls | Static: 0 http client imports in src/. Runtime: `docker run --network none …` — container boots, all data loads from `/app/data`, all endpoints serve, `wget <Upstream API>` fails with `bad address` | ✅ |
 | 8 | Output schema matches required shape | TypeScript verifier checks all 8 fields present with correct types on every item across all three tiers (52 items × 9 checks each) | all PASS |
 | 9 | APY ≥ 3% filter | `apys.every(v => v >= 3.0)` across all three tiers; observed min = 3 | ✅ |
 | 10 | Sort by APY descending | `apys.every((_, i) => i === 0 \|\| apys[i-1] >= apys[i])` — orderings: `[8, 3, 3]`, `[8, 7.5, 4, 3, 3]`, `[8, 7.5, 4, 3, 3]` | ✅ |
@@ -6893,7 +6893,7 @@ Each item maps to a specific clause in `ASSESSMENT.md`. Here's the reasoning beh
 | 5 | **Verify output schema (all 8 fields, correct types)** | The spec gives a literal sample with 8 named fields and shows their types | The frontend (Aurora's React Native app) reads these field names. A typo (`apy_value` vs `apyValue`) or wrong type (`apyValue` as string `"4.25"` instead of number `4.25`) silently breaks the consumer. Two of the four evaluation criteria ("Schema & Data Handling", "Code Quality & Production Signals") hinge on this. |
 | 6 | **Verify business filters (APY ≥ 3, sort DESC, tier rules)** | "Only surface assets with a current APY ≥ 3%" + "results **must** be sorted by APY descending" + the tier-eligibility rules | These are the *correctness* requirements — the actual product logic. Unit tests already cover this with mocked inputs, but verifying against the real running container with the real fixtures catches integration mistakes: wrong file loaded, transform not wired in, route bypass. |
 | 7 | **Verify structured error responses (never raw stack)** | "If the upstream data is unavailable or returns unexpected data, return a structured error response with a human-readable message — **never a raw stack trace.**" + Two hard constraints: results sorted + structured error | The spec uses the word "never" and the phrase "hard constraint". A 500 with a stack trace is the canonical mark of an amateur API. This check also covers 404 paths and missing/invalid query params — anywhere Express might default to leaking internals. |
-| 8 | **Verify runtime network closure (`--network none`)** | "Runtime network is closed — the running container has no outbound network access. Your service must not attempt to call the internet at runtime." | This is what the grader's environment actually does to your container. If the service quietly tries to reach `api.kraken.com` at boot, it will hang or fail in grading even though it ran perfectly on the developer's laptop with internet. Simulating it locally is the only way to catch this before submission. |
+| 8 | **Verify runtime network closure (`--network none`)** | "Runtime network is closed — the running container has no outbound network access. Your service must not attempt to call the internet at runtime." | This is what the grader's environment actually does to your container. If the service quietly tries to reach `<Upstream API>` at boot, it will hang or fail in grading even though it ran perfectly on the developer's laptop with internet. Simulating it locally is the only way to catch this before submission. |
 | 9 | **Verify all `*.json` in `/data` are read (add extra fixture)** | "**Read all JSON files found in the directory** — additional test data files may be added during scoring." + scoring note: "additional JSON files may be added to the `data/` directory to test edge case handling" | The grader explicitly adds files we haven't seen. If our loader hardcodes `strategies.json` and `assets.json` filenames, we pass the visible test and fail the hidden one. Dropping in a third file and watching strategy count go from 14 to 15 is the only way to prove the loader is generalised. |
 | 10 | **Verify malformed/unknown JSON skipped without crash** | Spec's "graceful error handling" + the loader's claim that it doesn't crash on unknown shapes | Defense against the worst version of the hidden-fixture rule: the grader adds a `notes.json` or a `README.json` to test resilience. If our loader crashes on the first file that doesn't match the schemas, all the careful work above is wasted. This guarantees the boot stays clean. |
 | 11 | **Run Vitest + `tsc --noEmit` in `node:20-alpine`** | Not a direct spec clause — but the "Code Quality & Production Signals" evaluation criterion | The host might have Node 22, the user's local libs, etc. The Dockerfile builds in `node:20-alpine`. Tests passing on the host but failing in alpine (musl vs glibc differences, missing Node APIs, ESM/CJS quirks) is a real failure mode. Running tests in the actual build image proves the suite is portable, not host-specific. |
@@ -10449,7 +10449,7 @@ Todos have been modified successfully. Ensure that you continue to use the todo 
 
 ```json
 {
-  "command": "echo \"=== Tear down compose container ===\"; docker-compose down 2>&1 | tail -3; echo; echo \"=== Static check: no http client imports in src/ ===\"; grep -rEn \"require\\(['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"from ['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"fetch\\(\" src/ 2>&1 || true; echo \"(no matches expected above)\"; echo; echo \"=== Run air-gap container ===\"; docker run -d --rm --name aurora-airgap --network none -v \"$(pwd)/data:/app/data:ro\" asgn-opus-aurora-earn:latest 2>&1 | head -1; sleep 2; echo; echo \"=== Container alive + on 'none' network? ===\"; docker ps --filter name=aurora-airgap --format \"table {{.Names}}\\t{{.Status}}\\t{{.Networks}}\"; echo; echo \"=== Boot logs (data must come from /app/data) ===\"; docker logs aurora-airgap 2>&1; echo; echo \"=== Confirm no internet ===\"; docker exec aurora-airgap sh -c 'wget -T 2 -qO- https://api.kraken.com/0/public/Assets 2>&1 || echo \"CONFIRMED no internet\"'; echo; echo \"=== Endpoints serve via loopback inside the container ===\"; echo \"-- /health --\"; docker exec aurora-airgap wget -qO- http://127.0.0.1:3000/health; echo; echo \"-- /earn-products?tier=premium --\"; docker exec aurora-airgap wget -qO- 'http://127.0.0.1:3000/earn-products?tier=premium' | node -e 'let s=\"\"; process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const a=JSON.parse(s); console.log(a.length+\" items\"); a.forEach(i=>console.log(\" \",i.strategyId,i.asset,i.lockType,i.apyDisplay))})'",
+  "command": "echo \"=== Tear down compose container ===\"; docker-compose down 2>&1 | tail -3; echo; echo \"=== Static check: no http client imports in src/ ===\"; grep -rEn \"require\\(['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"from ['\\\"](http|https|node-fetch|axios|got|undici)\" src/ 2>&1 || true; grep -rEn \"fetch\\(\" src/ 2>&1 || true; echo \"(no matches expected above)\"; echo; echo \"=== Run air-gap container ===\"; docker run -d --rm --name aurora-airgap --network none -v \"$(pwd)/data:/app/data:ro\" asgn-opus-aurora-earn:latest 2>&1 | head -1; sleep 2; echo; echo \"=== Container alive + on 'none' network? ===\"; docker ps --filter name=aurora-airgap --format \"table {{.Names}}\\t{{.Status}}\\t{{.Networks}}\"; echo; echo \"=== Boot logs (data must come from /app/data) ===\"; docker logs aurora-airgap 2>&1; echo; echo \"=== Confirm no internet ===\"; docker exec aurora-airgap sh -c 'wget -T 2 -qO- https://<Upstream API>/0/public/Assets 2>&1 || echo \"CONFIRMED no internet\"'; echo; echo \"=== Endpoints serve via loopback inside the container ===\"; echo \"-- /health --\"; docker exec aurora-airgap wget -qO- http://127.0.0.1:3000/health; echo; echo \"-- /earn-products?tier=premium --\"; docker exec aurora-airgap wget -qO- 'http://127.0.0.1:3000/earn-products?tier=premium' | node -e 'let s=\"\"; process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const a=JSON.parse(s); console.log(a.length+\" items\"); a.forEach(i=>console.log(\" \",i.strategyId,i.asset,i.lockType,i.apyDisplay))})'",
   "description": "Air-gapped runtime check",
   "timeout": 60000
 }
@@ -10486,7 +10486,7 @@ aurora-airgap   Up 2 seconds   none
 [server] Aurora earn-products service listening on http://0.0.0.0:3000
 
 === Confirm no internet ===
-wget: bad address 'api.kraken.com'
+wget: bad address '<Upstream API>'
 CONFIRMED no internet
 
 === Endpoints serve via loopback inside the container ===
@@ -11120,7 +11120,7 @@ Every condition in `ASSESSMENT.md`, re-verified end-to-end from clean state. All
 | 5 | No env vars / credentials required | `docker-compose.yml` has zero `environment:` entries; defaults in code | ✅ |
 | 6 | Service accessible at `http://localhost:3000` | `curl http://localhost:3000/health` from the host returned `{"status":"ok"}` | ✅ |
 | 7 | Build-time network OK | Dockerfile `RUN npm ci` succeeded during fresh build | ✅ |
-| 8 | **Runtime network closed** | `docker run --network none …` — boot OK, all endpoints serve, `wget api.kraken.com` from inside → `bad address` | ✅ |
+| 8 | **Runtime network closed** | `docker run --network none …` — boot OK, all endpoints serve, `wget <Upstream API>` from inside → `bad address` | ✅ |
 | 9 | No outbound HTTP client in source | `grep` for `http\|https\|node-fetch\|axios\|got\|undici\|fetch(` in src/ → no matches | ✅ |
 | 10 | Output shape (8 required fields, correct types) | TypeScript verifier validated 13 items × 9 checks per item across 3 tiers | ✅ all PASS |
 | 11 | APY ≥ 3% floor | `apys.every(v => v >= 3.0)` across all tiers; min observed = 3.00 | ✅ |
@@ -11839,7 +11839,7 @@ Now the additions inside "Key decisions" and "Where the assistant pushed back" s
 <summary>Tool Result</summary>
 
 ```
-28	| 15 | "Run all tests against the container from scratch. Strictly observe every runtime condition in `ASSESSMENT.md`." | Re-ran the full 12-step verification cycle against the rebuilt image: clean slate → static conditions → compose up from scratch → host reachability → TypeScript HTTP verifier (every check PASS) → `--network none` air-gap (`api.kraken.com` confirmed blocked) → extra fixture pickup (14 → 15 strategies) → unknown-schema skip → 52/52 Vitest + tsc clean in `node:20-alpine` → final cleanup. All 18 spec conditions PASS. |
+28	| 15 | "Run all tests against the container from scratch. Strictly observe every runtime condition in `ASSESSMENT.md`." | Re-ran the full 12-step verification cycle against the rebuilt image: clean slate → static conditions → compose up from scratch → host reachability → TypeScript HTTP verifier (every check PASS) → `--network none` air-gap (`<Upstream API>` confirmed blocked) → extra fixture pickup (14 → 15 strategies) → unknown-schema skip → 52/52 Vitest + tsc clean in `node:20-alpine` → final cleanup. All 18 spec conditions PASS. |
 29	| 16 | "Identify updates needed to the design note, README, and `ai-transcript-gen.md`." | Reported 5 stale claims in README (test counts, supertest in deps, removed HTTP-layer limitation), 1 stale claim in the design note (item 5 of path-to-production), and 4 new timeline rows + 2 section additions needed in this very file. Flagged `ai-transcript.md` as needing re-export, not edit. |
 30	
 31	---
